@@ -1,0 +1,4 @@
+rdslam
+======
+
+Rutgers Distributed SLAM
