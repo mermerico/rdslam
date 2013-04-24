@@ -4,10 +4,42 @@ import control
 import curses
 import math
 import time
+import threading
+import socket
+import select
 
+class server2(threading.Thread):
+    def __init__(self,teleop):
+        threading.Thread.__init__(self)
+        self.myteleop = teleop
+    def run(self):
+        s = socket.socket()
+        host = socket.gethostname()
+        port = 12345
+        s.bind((host,port))
+        
+        s.listen(5)
+        while not self.myteleop.stopthread:
+            (ready_to_read, ready_to_write, in_error) = select.select([s],[s],[],1)
+            for x in ready_to_read:
+                c, addr = s.accept()    
+                self.myteleop.threadLock.acquire()
+                c.send("%f" %self.myteleop.xpos)
+                self.myteleop.threadLock.release()
+                c.close()
+        
 class TeleOp:
     stdscr = None
     control = None
+    threadLock = threading.Lock()
+    stopthread = 0
+    xpos = 0
+    ypos = 0
+    theta = 0
+    vl = 0
+    vr = 0
+    w = 0
+    
 
     def __init__(self, control):
         self.control = control
@@ -38,14 +70,16 @@ class TeleOp:
         oldleft = -oldleft #wheels are mounted backwards
         oldright = -oldright 
         oldtime = time.time()
-        xpos = 0
-        ypos = 0
-        theta = 0
         
+        self.stopthread = 0
+        serverThread = server2(self)
+        serverThread.start()
+        
+
         while k != ord('q'):
+            self.threadLock.acquire()
             self.readTacho()
             k = self.stdscr.getch()
-            #self.stdscr.addstr(5, 4, "k = %d" % k)
             newleft, newright = self.control.getTacho()
             newleft = -newleft #wheels are backwards
             newright = -newright
@@ -56,23 +90,24 @@ class TeleOp:
             leftchange = math.pi*wheeldiameter*(newleft-oldleft)/360
             oldright = newright
             oldleft = newleft
-            vr = rightchange/elapsed
-            vl = leftchange/elapsed
-            oldxpos = xpos
-            oldypos = ypos
-            if (abs(vr-vl) > 0.001):
-                xpos = oldxpos + (wheeldistance*(vr+vl))/(2*(vr-vl))*(math.sin((vr-vl)*elapsed/wheeldistance + theta)-math.sin(theta))
-                ypos = oldypos - (wheeldistance*(vr+vl))/(2*(vr-vl))*(math.cos((vr-vl)*elapsed/wheeldistance + theta)-math.cos(theta))
+            self.vr = rightchange/elapsed
+            self.vl = leftchange/elapsed
+            oldxpos = self.xpos
+            oldypos = self.ypos
+            if (abs(self.vr-self.vl) > 0.001):
+                self.xpos = oldxpos + (wheeldistance*(self.vr+self.vl))/(2*(self.vr-self.vl))*(math.sin((self.vr-self.vl)*elapsed/wheeldistance + self.theta)-math.sin(self.theta))
+                self.ypos = oldypos - (wheeldistance*(self.vr+self.vl))/(2*(self.vr-self.vl))*(math.cos((self.vr-self.vl)*elapsed/wheeldistance + self.theta)-math.cos(self.theta))
             else:
-                xpos = oldxpos + 0.5*(vr+vl)*elapsed*math.sin(theta)
-                ypos = oldypos - 0.5*(vr+vl)*elapsed*math.cos(theta)
-            theta = (rightchange-leftchange)/wheeldistance + theta
-            self.stdscr.addstr(4, 4, "X Position:  %f        " % xpos)
-            self.stdscr.addstr(5, 4, "Y Position:  %f        " % ypos)
-            self.stdscr.addstr(6, 4, "Degree of Rotation (Rads):  %f        " % theta)
+                self.xpos = oldxpos + 0.5*(self.vr+self.vl)*elapsed*math.sin(self.theta)
+                self.ypos = oldypos - 0.5*(self.vr+self.vl)*elapsed*math.cos(self.theta)
+            self.theta = (rightchange-leftchange)/wheeldistance + self.theta
+            self.threadLock.release()
+            self.stdscr.addstr(4, 4, "X Position:  %f        " % self.xpos)
+            self.stdscr.addstr(5, 4, "Y Position:  %f        " % self.ypos)
+            self.stdscr.addstr(6, 4, "Degree of Rotation (Rads):  %f        " % self.theta)
             self.stdscr.addstr(7, 4, "rightchange:  %f       " % rightchange)
             self.stdscr.addstr(8, 4, "Elapsed:     %f        " % elapsed)
-            self.stdscr.addstr(9, 4, "vr:     %f             " % vr)
+            self.stdscr.addstr(9, 4, "vr:     %f             " % self.vr)
             if k == 65: #curses.KEY_UP: 
                 self.stdscr.addstr(15, 1, "FORWARD ");
                 self.control.setSpeed(-80, -80);
@@ -88,23 +123,6 @@ class TeleOp:
             elif k == ord(' '):
                 self.stdscr.addstr(15, 1, "STOP    ");
                 self.control.idle()
-#            newleft, newright = self.control.getTacho()
-#            newtime = time.time()
-#            elapsed = newtime - oldtime
-#            oldtime = newtime
-#            rightchange = math.pi*wheeldiameter*(newright-oldright)/360
-#            leftchange = math.pi*wheeldiameter*(newleft-oldleft)/360
-#            oldright = newright
-#            oldleft = newleft
-#            vr = rightchange/elapsed
-#            vl = leftchange/elapsed
-#            oldxpos = xpos
-#            oldypos = ypos
-#            oldtheta = theta
-#            if math.abs(vr-vl) > 0.001:
-#                xpos = oldxpos + (wheeldistance*(vr+vl))/(2*(vr-vl))*(math.sin((vr-vl)*elapsed/wheeldiameter + theta)-math.sin(theta));
-#                ypos = oldypos - (wheeldistance*(vr+vl))/(2*(vr-vl))*(math.cos((vr-vl)*elapsed/wheeldiameter + theta)-math.cos(theta));
-#            else:
-#                xpos = oldxpos + 0.5*(vr+vl)*math.sin(theta);
-#                ypos = oldypos - 0.5*(vr+vl)*math.cos(theta);
-#            theta = (rightchange-leftchange)/wheeldiameter + oldtheta
+        self.control.idle()
+        self.stopthread = 1
+        serverThread.join()
