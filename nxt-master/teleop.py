@@ -16,7 +16,7 @@ class server2(threading.Thread):
         s = socket.socket()
         host = socket.gethostname()
         port = 12345
-        s.bind((host,port))
+        s.bind(('',port))
         
         s.listen(5)
         while not self.myteleop.stopthread:
@@ -24,8 +24,15 @@ class server2(threading.Thread):
             for x in ready_to_read:
                 c, addr = s.accept()    
                 self.myteleop.threadLock.acquire()
-                c.send("%f" %self.myteleop.xpos)
+                xpos = self.myteleop.xpos
+                ypos = self.myteleop.ypos
+                theta = self.myteleop.theta
+                vl = self.myteleop.vl
+                vr = self.myteleop.vr
+                w = self.myteleop.w
                 self.myteleop.threadLock.release()
+                outstring = '{:f} {:f} {:f} {:f} {:f} {:f}'.format(xpos,ypos,theta,vl,vr,w)
+                c.send(outstring)
                 c.close()
         
 class TeleOp:
@@ -100,7 +107,9 @@ class TeleOp:
             else:
                 self.xpos = oldxpos + 0.5*(self.vr+self.vl)*elapsed*math.sin(self.theta)
                 self.ypos = oldypos - 0.5*(self.vr+self.vl)*elapsed*math.cos(self.theta)
+            oldtheta = self.theta
             self.theta = (rightchange-leftchange)/wheeldistance + self.theta
+            self.w = (self.theta-oldtheta)/elapsed
             self.threadLock.release()
             self.stdscr.addstr(4, 4, "X Position:  %f        " % self.xpos)
             self.stdscr.addstr(5, 4, "Y Position:  %f        " % self.ypos)
