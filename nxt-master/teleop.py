@@ -31,7 +31,7 @@ class server2(threading.Thread):
                 vr = self.myteleop.vr
                 w = self.myteleop.w
                 self.myteleop.threadLock.release()
-                outstring = '{:f} {:f} {:f} {:f} {:f} {:f}'.format(xpos,ypos,theta,vl,vr,w)
+                outstring = '{:f} {:f} {:f} {:f} {:f} {:f}'.format(xpos,ypos,theta,vx,vy,w)
                 c.send(outstring)
                 c.close()
         
@@ -43,8 +43,8 @@ class TeleOp:
     xpos = 0
     ypos = 0
     theta = 0
-    vl = 0
-    vr = 0
+    vx = 0
+    vy = 0
     w = 0
     
 
@@ -97,16 +97,18 @@ class TeleOp:
             leftchange = math.pi*wheeldiameter*(newleft-oldleft)/360
             oldright = newright
             oldleft = newleft
-            self.vr = rightchange/elapsed
-            self.vl = leftchange/elapsed
+            vr = rightchange/elapsed
+            vl = leftchange/elapsed
             oldxpos = self.xpos
             oldypos = self.ypos
-            if (abs(self.vr-self.vl) > 0.001):
-                self.xpos = oldxpos + (wheeldistance*(self.vr+self.vl))/(2*(self.vr-self.vl))*(math.sin((self.vr-self.vl)*elapsed/wheeldistance + self.theta)-math.sin(self.theta))
-                self.ypos = oldypos - (wheeldistance*(self.vr+self.vl))/(2*(self.vr-self.vl))*(math.cos((self.vr-self.vl)*elapsed/wheeldistance + self.theta)-math.cos(self.theta))
+            if (abs(vr-vl) > 0.001):
+                self.xpos = oldxpos + (wheeldistance*(vr+vl))/(2*(vr-vl))*(math.sin((vr-vl)*elapsed/wheeldistance + self.theta)-math.sin(self.theta))
+                self.ypos = oldypos - (wheeldistance*(vr+vl))/(2*(vr-vl))*(math.cos((vr-vl)*elapsed/wheeldistance + self.theta)-math.cos(self.theta))
             else:
-                self.xpos = oldxpos + 0.5*(self.vr+self.vl)*elapsed*math.sin(self.theta)
-                self.ypos = oldypos - 0.5*(self.vr+self.vl)*elapsed*math.cos(self.theta)
+                self.xpos = oldxpos + 0.5*(vr+vl)*elapsed*math.sin(self.theta)
+                self.ypos = oldypos - 0.5*(vr+vl)*elapsed*math.cos(self.theta)
+            self.vx = (self.xpos-oldxpos)/elapsed
+            self.vy = (self.ypos-oldypos)/elapsed
             oldtheta = self.theta
             self.theta = (rightchange-leftchange)/wheeldistance + self.theta
             self.w = (self.theta-oldtheta)/elapsed
