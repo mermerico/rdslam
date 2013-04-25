@@ -27,8 +27,8 @@ class server2(threading.Thread):
                 xpos = self.myteleop.xpos
                 ypos = self.myteleop.ypos
                 theta = self.myteleop.theta
-                vl = self.myteleop.vl
-                vr = self.myteleop.vr
+                vx = self.myteleop.vx
+                vy = self.myteleop.vy
                 w = self.myteleop.w
                 self.myteleop.threadLock.release()
                 outstring = '{:f} {:f} {:f} {:f} {:f} {:f}'.format(xpos,ypos,theta,vx,vy,w)
@@ -118,7 +118,7 @@ class TeleOp:
             self.stdscr.addstr(6, 4, "Degree of Rotation (Rads):  %f        " % self.theta)
             self.stdscr.addstr(7, 4, "rightchange:  %f       " % rightchange)
             self.stdscr.addstr(8, 4, "Elapsed:     %f        " % elapsed)
-            self.stdscr.addstr(9, 4, "vr:     %f             " % self.vr)
+            self.stdscr.addstr(9, 4, "vr:     %f             " % vr)
             if k == 65: #curses.KEY_UP: 
                 self.stdscr.addstr(15, 1, "FORWARD ");
                 self.control.setSpeed(-80, -80);
